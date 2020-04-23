@@ -1,13 +1,15 @@
 import dash
-import dash_core_components as dcc 
-import dash_html_components as html 
-import pandas as pd 
+import dash_core_components as dcc
+import dash_html_components as html
+import pandas as pd
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-df = pd.read_csv('https://gist.githubusercontent.com/chriddyp/5d1ea79569ed194d432e56108a04d188/raw/a9f9e8076b837d541398e999dcbac2b2826a81f8/gdp-life-exp-2007.csv')
+df = pd.read_csv(
+    'https://gist.githubusercontent.com/chriddyp/5d1ea79569ed194d432e56108a04d188/raw/a9f9e8076b837d541398e999dcbac2b2826a81f8/gdp-life-exp-2007.csv')
+
 
 def generate_table(dataframe, max_rows=10):
     return html.Table([
@@ -20,6 +22,7 @@ def generate_table(dataframe, max_rows=10):
             ]) for i in range(min(len(dataframe), max_rows))
         ])
     ])
+
 
 colors = {
     'background': '#111111',
@@ -45,7 +48,60 @@ app.layout = html.Div(style={'margin': '5em'}, children=[
         Dash: A web application framework for Python
         '''),
     dcc.Markdown(markdown_text),
+    html.Div(style={'columnCount': 2}, children=[
+        html.Label('Dropdown'),
+        dcc.Dropdown(
+            options=[
+                {'label': 'New York City', 'value': 'NYC'},
+                {'label': u'Montréal', 'value': 'MTL'},
+                {'label': 'San Francisco', 'value': 'SF'}
+            ],
+            value='MTL'
+        ),
 
+        html.Label('Multi-Select Dropdown'),
+        dcc.Dropdown(
+            options=[
+                {'label': 'New York City', 'value': 'NYC'},
+                {'label': u'Montréal', 'value': 'MTL'},
+                {'label': 'San Francisco', 'value': 'SF'}
+            ],
+            value=['MTL', 'SF'],
+            multi=True
+        ),
+
+        html.Label('Radio Items'),
+        dcc.RadioItems(
+            options=[
+                {'label': 'New York City', 'value': 'NYC'},
+                {'label': u'Montréal', 'value': 'MTL'},
+                {'label': 'San Francisco', 'value': 'SF'}
+            ],
+            value='MTL'
+        ),
+
+        html.Label('Checkboxes'),
+        dcc.Checklist(
+            options=[
+                {'label': 'New York City', 'value': 'NYC'},
+                {'label': u'Montréal', 'value': 'MTL'},
+                {'label': 'San Francisco', 'value': 'SF'}
+            ],
+            value=['MTL', 'SF']
+        ),
+
+        html.Label('Text Input'),
+        dcc.Input(value='MTL', type='text'),
+
+        html.Label('Slider'),
+        dcc.Slider(
+            min=0,
+            max=9,
+            marks={i: 'Label {}'.format(i) if i == 1 else str(i)
+                   for i in range(1, 6)},
+            value=5,
+        ),
+    ]),
     dcc.Graph(
         id='life-exp-vs-gdp',
         figure={
