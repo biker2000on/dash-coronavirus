@@ -1,6 +1,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_table
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 import pandas as pd
@@ -31,16 +32,43 @@ def addcolumns(row):
 df['timeline'] = df.apply(addcolumns, axis=1)
 flat = pd.concat(list(df.timeline)).reset_index()
 
-fig = px.line(flat, x='index', y='dailycases',
-              line_group='country', hover_name='country')
+# fig = px.line(flat, x='index', y='dailycases',
+#               line_group='country', hover_name='country')
 options = list(flat.columns)
+countries = list(df.country.unique())
 
 app.layout = html.Div([
-    dcc.Dropdown(id='chart-type',
-                 options=[{'label': i, 'value': i} for i in options],
-                 value='dailycases'
+    html.Div([
+        html.Div([
+            dcc.Dropdown(id='chart-type',
+                         options=[{'label': i, 'value': i} for i in options],
+                         value='dailycases',
+                         )],
+                 style={'display': 'inline-block', 'width': '49%'}
                  ),
-    dcc.Graph(id='chart')
+        html.Div([
+            dcc.Dropdown(id='country',
+                         options=[{'label': i, 'value': i} for i in countries],
+                         value="USA",
+                         )],
+                 style={'display': 'inline-block',
+                        'width': '49%',
+                        'float': 'right'}
+                 )
+    ]),
+    html.Div([
+        dcc.Graph(id='chart', style={
+                  'display': 'inline-block', 'width': '49%'}),
+        dcc.Graph(id='country-chart',
+                  style={'display': 'inline-block', 'width': '49%', 'float': 'right'})
+    ]),
+    # html.Div([
+    #     dash_table.DataTable(
+    #         id='table',
+    #         columns=[{"name": i, "id": i} for i in df.columns],
+    #         data=df.to_dict('records')
+    #     )
+    # ])
 ])
 
 
@@ -50,6 +78,16 @@ app.layout = html.Div([
 )
 def changeChart(chartType):
     return px.line(flat, x='index', y=chartType, line_group='country', hover_name='country', color='country')
+
+
+@app.callback(
+    Output('country-chart', 'figure'),
+    [Input('country', 'value')]
+)
+def changeCountry(country):
+    c = flat[flat['country'] == country].melt(['index', 'country', 'province'])
+    c = c[c['variable'].str.contains('daily')]
+    return px.line(c, x='index', y='value', line_group='variable', hover_name='variable', color='variable')
 
 
 if __name__ == '__main__':
