@@ -6,34 +6,34 @@ from dash.dependencies import Input, Output, State
 import plotly.express as px
 import pandas as pd
 import requests as r
+from pandas.io.json import json_normalize
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 data = r.get('https://corona.lmao.ninja/v2/historical',
              params={'lastdays': 'all'})
+r2 = r.get('https://corona.lmao.ninja/v2/countries')
+
 df = pd.read_json(data.text)
+countryData = json_normalize(r2.json())
+countryData['updated'] = pd.to_datetime(countryData.updated, unit='ms').dt.strftime('%m/%d/%Y %H:%M')
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
 def addcolumns(row):
     dff = pd.DataFrame(row.timeline)
-    dff = dff.assign(
-        **{'dailycases': 0, 'dailydeaths': 0, 'dailyrecovered': 0})
     dff['country'] = row.country
     dff['province'] = row.province
-    for i in range(1, len(dff)):
-        dff.iloc[i, 3] = dff.iloc[i, 0] - dff.iloc[i-1, 0]
-        dff.iloc[i, 4] = dff.iloc[i, 1] - dff.iloc[i-1, 1]
-        dff.iloc[i, 5] = dff.iloc[i, 2] - dff.iloc[i-1, 2]
+    dff['dailycases'] = dff.cases.diff().fillna(0)
+    dff['dailydeaths'] = dff.deaths.diff().fillna(0)
+    dff['dailyrecovered'] = dff.recovered.diff().fillna(0)
     return dff
 
 
 df['timeline'] = df.apply(addcolumns, axis=1)
 flat = pd.concat(list(df.timeline)).reset_index()
 
-# fig = px.line(flat, x='index', y='dailycases',
-#               line_group='country', hover_name='country')
 options = list(flat.columns)
 countries = list(df.country.unique())
 
@@ -43,9 +43,16 @@ app.layout = html.Div([
             dcc.Dropdown(id='chart-type',
                          options=[{'label': i, 'value': i} for i in options],
                          value='dailycases',
-                         )],
-                 style={'display': 'inline-block', 'width': '49%'}
-                 ),
+                         ),
+            dcc.Dropdown(
+                id='chart-date',
+                options=[{'label': i, 'value': i}
+                         for i in flat['index'].unique()],
+                value=flat['index'].unique()[-1],
+            )
+        ],
+            style={'display': 'inline-block', 'width': '49%'}
+        ),
         html.Div([
             dcc.Dropdown(id='country',
                          options=[{'label': i, 'value': i} for i in countries],
@@ -62,22 +69,44 @@ app.layout = html.Div([
         dcc.Graph(id='country-chart',
                   style={'display': 'inline-block', 'width': '49%', 'float': 'right'})
     ]),
-    # html.Div([
-    #     dash_table.DataTable(
-    #         id='table',
-    #         columns=[{"name": i, "id": i} for i in df.columns],
-    #         data=df.to_dict('records')
-    #     )
-    # ])
+    html.Div([
+        dash_table.DataTable(
+            id='table',
+            columns=[{"name": i, "id": i} for i in countryData.columns[:6]],
+            data=countryData.iloc[:, :6].to_dict('records'),
+            fixed_rows={ 'headers': True, 'data': 0 },
+            style_table={
+                'maxHeight': '300px',
+                'overflowY': 'scroll',
+                'border': 'thin lightgrey solid',
+            },
+            # editable=True,
+            filter_action="native",
+            sort_action="native",
+            sort_mode="multi",
+            # column_selectable="single",
+            # row_selectable="multi",
+            # row_deletable=True,
+            # selected_columns=[],
+            # selected_rows=[],
+            page_action="native",
+            page_current= 0,
+            page_size= 10,
+        )
+    ], className='container')
 ])
 
 
 @app.callback(
     Output('chart', 'figure'),
-    [Input('chart-type', 'value')]
+    [Input('chart-type', 'value'),
+     Input('chart-date', 'value')]
 )
-def changeChart(chartType):
-    return px.line(flat, x='index', y=chartType, line_group='country', hover_name='country', color='country')
+def changeChart(chartType, chartDate):
+    top = flat[flat['index'] == chartDate]
+    top10 = top.sort_values('cases', ascending=False).iloc[:10, :]
+    top10chart = flat[flat['country'].isin(list(top10.country))]
+    return px.line(top10chart, x='index', y=chartType, line_group='country', hover_name='country', color='country')
 
 
 @app.callback(
