@@ -3,6 +3,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_table
 from dash.dependencies import Input, Output, State
+import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import requests as r
@@ -36,6 +37,19 @@ flat = pd.concat(list(df.timeline)).reset_index()
 
 options = list(flat.columns)
 countries = list(df.country.unique())
+
+# fig = go.Figure(data=go.Choropleth(
+#     locations=countryData['countryInfo.iso3'],
+#     z=countryData['casesPerOneMillion']
+# ))
+
+fig = px.choropleth(
+    countryData[countryData['casesPerOneMillion'] < 8000],
+    locations='countryInfo.iso3',
+    color='casesPerOneMillion',
+    hover_name='country',
+    height=600
+)
 
 app.layout = html.Div([
     html.Div([
@@ -93,7 +107,12 @@ app.layout = html.Div([
             page_current= 0,
             page_size= 10,
         )
-    ], className='container')
+    ], className='container'),
+    html.Div([
+        dcc.Graph(id='map',
+                  figure=fig
+                  )
+    ])
 ])
 
 
